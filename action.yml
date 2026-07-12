@@ -1,0 +1,55 @@
+name: "Ansible SecOps Linter"
+description: "Security-focused static analysis for Ansible playbooks and roles."
+author: "Sergey Sannikov"
+
+branding:
+  icon: "shield"
+  color: "yellow"
+
+inputs:
+  paths:
+    description: "Space-separated files or directories to scan."
+    required: false
+    default: "."
+  format:
+    description: "Output format: 'text' or 'sarif'."
+    required: false
+    default: "text"
+  fail-on:
+    description: "Minimum severity that makes the action fail: error, warning, note, or never."
+    required: false
+    default: "error"
+  output-file:
+    description: "Optional path to write the output to (in addition to the log)."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+      with:
+        python-version: "3.12"
+    - name: Install ansible-secops-linter
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: pip install "$ACTION_PATH"
+    - name: Run ansible-secops-linter
+      shell: bash
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        set -euo pipefail
+        # Word-split INPUT_PATHS on purpose so multiple paths can be passed.
+        read -r -a paths <<< "$INPUT_PATHS"
+        args=(lint "${paths[@]}" --format "$INPUT_FORMAT" --fail-on "$INPUT_FAIL_ON")
+        if [ -n "$INPUT_OUTPUT_FILE" ]; then
+          ansible-secops-linter "${args[@]}" | tee "$INPUT_OUTPUT_FILE"
+        else
+          ansible-secops-linter "${args[@]}"
+        fi
