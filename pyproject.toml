@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ansible-secops-linter"
-version = "0.0.1"
+version = "0.1.0"
 description = "Security-focused static analysis for Ansible playbooks and roles."
 readme = "README.md"
 requires-python = ">=3.11"
