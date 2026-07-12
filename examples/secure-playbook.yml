@@ -1,0 +1,35 @@
+# Secure counterpart to insecure-playbook.yml. ansible-secops-linter reports
+# no findings here.
+---
+- name: Provision an application host (secure)
+  hosts: app
+  become: true
+  tasks:
+    - name: Fetch a release over verified TLS
+      ansible.builtin.get_url:
+        url: https://releases.example.com/app.tar.gz
+        dest: /opt/app.tar.gz
+        validate_certs: true
+
+    - name: Create the database user
+      community.postgresql.postgresql_user:
+        name: app
+        password: "{{ vault_db_password }}"
+      no_log: true
+
+    - name: Configure the application account
+      ansible.builtin.user:
+        name: app
+        password: "{{ vault_app_password }}"
+      no_log: true
+
+    - name: Write the config file
+      ansible.builtin.copy:
+        dest: /etc/app/config.yml
+        content: "listen: 127.0.0.1"
+        mode: "0640"
+
+    - name: Install the vendor package
+      ansible.builtin.yum:
+        name: vendor-agent
+        state: present

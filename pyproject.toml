@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ansible-secops-linter"
+version = "0.0.1"
+description = "Security-focused static analysis for Ansible playbooks and roles."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Sergey Sannikov" }]
+keywords = ["ansible", "security", "devsecops", "static-analysis", "linter"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+]
+dependencies = ["PyYAML>=6.0"]
+
+[project.optional-dependencies]
+dev = ["ruff", "mypy", "types-PyYAML"]
+
+[project.urls]
+Homepage = "https://github.com/semx/ansible-secops-linter"
+Issues = "https://github.com/semx/ansible-secops-linter/issues"
+
+[project.scripts]
+ansible-secops-linter = "ansible_secops_linter.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ansible_secops_linter*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Test fixtures deliberately contain sample credentials.
+"tests/**" = ["S105", "S106", "S107"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true

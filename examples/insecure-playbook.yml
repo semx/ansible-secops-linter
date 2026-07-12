@@ -1,0 +1,39 @@
+# Intentionally insecure playbook used as a test fixture for ansible-secops-linter.
+# Do NOT use any of these patterns in production.
+---
+- name: Provision an application host (insecure)
+  hosts: app
+  become: true
+  vars:
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+  tasks:
+    - name: Download and run an installer
+      ansible.builtin.shell: curl -sSL https://example.com/install.sh | bash
+
+    - name: Fetch a release over TLS without verification
+      ansible.builtin.get_url:
+        url: https://releases.example.com/app.tar.gz
+        dest: /opt/app.tar.gz
+        validate_certs: false
+
+    - name: Create the database user
+      community.postgresql.postgresql_user:
+        name: app
+        password: "SuperSecret123!"
+
+    - name: Configure the application account
+      ansible.builtin.user:
+        name: app
+        password: "{{ vault_app_password }}"
+
+    - name: Write the config file
+      ansible.builtin.copy:
+        dest: /etc/app/config.yml
+        content: "listen: 0.0.0.0"
+        mode: "0777"
+
+    - name: Install the vendor package
+      ansible.builtin.yum:
+        name: vendor-agent
+        state: present
+        disable_gpg_check: true
