@@ -31,3 +31,22 @@ jobs:
         run: python -m unittest discover -s tests
       - name: CLI smoke test
         run: python -m ansible_secops_linter.cli --version
+
+  ansible-core:
+    # The secret flow rules claim what ansible-core prints; this job holds them to it.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Check out the code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install the package and ansible-core
+        run: pip install -e . ansible-core
+      - name: Verify the flow rules against ansible-playbook
+        run: python -m unittest tests.test_ansible_verify -v
