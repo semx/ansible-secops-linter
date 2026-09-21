@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ansible-secops-linter"
-version = "0.1.0"
+version = "0.2.0"
 description = "Security-focused static analysis for Ansible playbooks and roles."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,7 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Sergey Sannikov" }]
 keywords = ["ansible", "security", "devsecops", "static-analysis", "linter"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
     "Topic :: Security",

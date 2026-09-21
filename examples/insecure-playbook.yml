@@ -6,6 +6,9 @@
   become: true
   vars:
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    service_accounts:
+      - name: deploy
+        password: "{{ vault_deploy_password }}"
   tasks:
     - name: Download and run an installer
       ansible.builtin.shell: curl -sSL https://example.com/install.sh | bash
@@ -37,3 +40,25 @@
         name: vendor-agent
         state: present
         disable_gpg_check: true
+
+    - name: Create the service accounts
+      ansible.builtin.user:
+        name: "{{ item.name }}"
+        password: "{{ item.password | password_hash('sha512') }}"
+      loop: "{{ service_accounts }}"
+
+    - name: Show the database password for troubleshooting
+      ansible.builtin.debug:
+        var: vault_db_password
+
+    - name: Run the schema migration
+      ansible.builtin.command: app migrate --db-password {{ vault_db_password }}
+
+    - name: Register the host with the inventory service
+      ansible.builtin.uri:
+        url: "https://inventory.example.com/register?token={{ vault_inventory_token }}"
+        method: POST
+
+    - name: Build the connection string
+      ansible.builtin.set_fact:
+        db_url: "postgres://app:{{ vault_db_password }}@db.example.com/app"

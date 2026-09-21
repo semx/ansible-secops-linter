@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from ansible_secops_linter.linter import scan_file, scan_paths
+from ansible_secops_linter.models import RULES
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
@@ -15,10 +16,7 @@ class TestLinterOnExamples(unittest.TestCase):
     def test_insecure_playbook_triggers_every_rule(self) -> None:
         findings = scan_file(EXAMPLES / "insecure-playbook.yml")
         rule_ids = {finding.rule_id for finding in findings}
-        self.assertEqual(
-            rule_ids,
-            {"SEC001", "SEC002", "SEC003", "SEC004", "SEC005", "SEC006", "SEC007"},
-        )
+        self.assertEqual(rule_ids, set(RULES))
 
     def test_secure_playbook_is_clean(self) -> None:
         self.assertEqual(scan_file(EXAMPLES / "secure-playbook.yml"), [])
