@@ -17,7 +17,7 @@ from ansible_secops_linter.models import Finding, Severity
 
 # A value that references a variable, a vault secret, or a lookup is treated as
 # safe for the "hardcoded secret" rule.
-_SAFE_VALUE = re.compile(r"^(\"?\{\{|!vault|.*\|\s*password_hash|.*lookup\()", re.IGNORECASE)
+_SAFE_VALUE = re.compile(r"^([\"']?\{\{|!vault|.*\|\s*password_hash|.*lookup\()", re.IGNORECASE)
 _SECRET_KEY = re.compile(
     r"^[a-z0-9_]*(password|passwd|secret|token|api[_-]?key|access[_-]?key|"
     r"private[_-]?key|auth[_-]?token)[a-z0-9_]*$",
@@ -157,11 +157,21 @@ def _mapping_has_secret_key(node: yaml.Node) -> bool:
     )
 
 
+# Task keywords whose values are not module arguments. ``environment`` is the
+# recommended way to hand a secret to a command precisely because it is not
+# printed, and task ``vars`` only define values, so neither counts here.
+_NON_ARGUMENT_KEYS = frozenset({"environment", "vars", "loop_control", "module_defaults"})
+
+
 def _has_sensitive_arg(keys: dict[str, yaml.Node]) -> bool:
     # Only consider secrets nested under a module key (module arguments). A task's
     # own ``name``/``no_log`` live one level up, so this avoids mistaking the
     # module-argument mapping itself for a separate task.
-    return any(_mapping_has_secret_key(value_node) for value_node in keys.values())
+    return any(
+        _mapping_has_secret_key(value_node)
+        for key, value_node in keys.items()
+        if key not in _NON_ARGUMENT_KEYS
+    )
 
 
 def check_no_log(path: str, text: str) -> Iterator[Finding]:

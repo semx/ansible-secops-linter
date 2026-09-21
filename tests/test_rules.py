@@ -31,6 +31,9 @@ class TestLineRules(unittest.TestCase):
     def test_vault_variable_is_clean(self) -> None:
         self.assertEqual(rule_ids("p", ['    password: "{{ vault_pw }}"']), [])
 
+    def test_single_quoted_variable_is_clean(self) -> None:
+        self.assertEqual(rule_ids("p", ["    password: '{{ vault_pw }}'"]), [])
+
     def test_update_password_is_not_a_secret(self) -> None:
         self.assertEqual(rule_ids("p", ["    update_password: always"]), [])
 
@@ -75,6 +78,21 @@ class TestNoLogRule(unittest.TestCase):
                     name: app
                     password: "{{ vault_pw }}"
                   no_log: true
+            """
+        )
+        self.assertEqual(list(check_no_log("p", text)), [])
+
+    def test_secret_in_environment_is_not_a_module_argument(self) -> None:
+        text = textwrap.dedent(
+            """\
+            ---
+            - name: play
+              hosts: all
+              tasks:
+                - name: run migration
+                  ansible.builtin.command: app migrate
+                  environment:
+                    DB_PASSWORD: "{{ vault_pw }}"
             """
         )
         self.assertEqual(list(check_no_log("p", text)), [])
