@@ -6,6 +6,7 @@ import re
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from ansible_secops_linter.flow import check_secret_flow, role_variables
 from ansible_secops_linter.models import Finding
 from ansible_secops_linter.rules import check_lines, check_no_log
 
@@ -59,6 +60,7 @@ def scan_file(path: Path) -> list[Finding]:
     name = path.as_posix()
     findings = list(check_lines(name, lines))
     findings.extend(check_no_log(name, text))
+    findings.extend(check_secret_flow(name, text, role_variables(path)))
     findings.sort(key=lambda finding: (finding.line, finding.rule_id))
     return findings
 
