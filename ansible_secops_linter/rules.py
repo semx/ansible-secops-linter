@@ -32,6 +32,24 @@ _VALUE_ALLOWLIST = frozenset(
     {"always", "on_create", "true", "false", "yes", "no", "present", "absent", "omit", ""}
 )
 _TRUE_SCALARS = frozenset({"true", "yes", "on"})
+# A variable name that denotes a secret value, used when following variables
+# through a play. Stricter than _SECRET_KEY: the secret word has to end the name
+# (``mysql_root_password``, ``vault_api_token``, ``aws_secret_access_key``), so
+# ``password_length`` does not qualify. ``passwd``, ``private_key`` and
+# ``access_key`` are left out on purpose: they name /etc/passwd data, key file
+# paths and key ids far more often than secret material. Names that talk
+# about a secret rather than hold one (``users_wo_passwords``,
+# ``hide_passwords``, ``update_password``) are excluded.
+_SECRET_NAME = re.compile(
+    r"^[a-z0-9_]*(password|secret|token|api[_-]?key|secret[_-]?(access[_-]?)?key|"
+    r"auth[_-]?token|credentials?)s?$",
+    re.IGNORECASE,
+)
+_NOT_A_SECRET_NAME = re.compile(
+    r"(^|_)(no|wo|without|hide|has|have|need|needs|update|change|reset|rotate|"
+    r"check|validate|require|requires)_",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -126,17 +144,19 @@ def check_lines(path: str, lines: Sequence[str]) -> Iterator[Finding]:
             yield Finding(rule.rule_id, rule.message, rule.severity, path, number)
 
 
-def _iter_mapping_nodes(node: yaml.Node) -> Iterator[yaml.MappingNode]:
+def iter_mapping_nodes(node: yaml.Node) -> Iterator[yaml.MappingNode]:
+    """Yield every mapping node under ``node``, depth first."""
     if isinstance(node, yaml.MappingNode):
         yield node
         for _, value_node in node.value:
-            yield from _iter_mapping_nodes(value_node)
+            yield from iter_mapping_nodes(value_node)
     elif isinstance(node, yaml.SequenceNode):
         for item in node.value:
-            yield from _iter_mapping_nodes(item)
+            yield from iter_mapping_nodes(item)
 
 
-def _mapping_keys(node: yaml.MappingNode) -> dict[str, yaml.Node]:
+def mapping_keys(node: yaml.MappingNode) -> dict[str, yaml.Node]:
+    """Return the scalar-keyed entries of a mapping node."""
     keys: dict[str, yaml.Node] = {}
     for key_node, value_node in node.value:
         if isinstance(key_node, yaml.ScalarNode):
@@ -144,15 +164,22 @@ def _mapping_keys(node: yaml.MappingNode) -> dict[str, yaml.Node]:
     return keys
 
 
-def _is_secret_key(key: str) -> bool:
+def is_secret_key(key: str) -> bool:
+    """Return whether a key name denotes a secret (password, token, key...)."""
     return bool(_SECRET_KEY.match(key)) and key.lower() not in _SECRET_KEY_ALLOWLIST
 
 
-def _mapping_has_secret_key(node: yaml.Node) -> bool:
+def is_secret_name(name: str) -> bool:
+    """Return whether a variable name denotes a secret value (see ``_SECRET_NAME``)."""
+    return bool(_SECRET_NAME.match(name)) and not _NOT_A_SECRET_NAME.search(name)
+
+
+def mapping_has_secret_key(node: yaml.Node) -> bool:
+    """Return whether a mapping node has a secret-named key at its top level."""
     if not isinstance(node, yaml.MappingNode):
         return False
     return any(
-        isinstance(key_node, yaml.ScalarNode) and _is_secret_key(str(key_node.value))
+        isinstance(key_node, yaml.ScalarNode) and is_secret_key(str(key_node.value))
         for key_node, _ in node.value
     )
 
@@ -168,7 +195,7 @@ def _has_sensitive_arg(keys: dict[str, yaml.Node]) -> bool:
     # own ``name``/``no_log`` live one level up, so this avoids mistaking the
     # module-argument mapping itself for a separate task.
     return any(
-        _mapping_has_secret_key(value_node)
+        mapping_has_secret_key(value_node)
         for key, value_node in keys.items()
         if key not in _NON_ARGUMENT_KEYS
     )
@@ -183,8 +210,8 @@ def check_no_log(path: str, text: str) -> Iterator[Finding]:
     for document in documents:
         if document is None:
             continue
-        for mapping in _iter_mapping_nodes(document):
-            keys = _mapping_keys(mapping)
+        for mapping in iter_mapping_nodes(document):
+            keys = mapping_keys(mapping)
             if "name" not in keys or not _has_sensitive_arg(keys):
                 continue
             no_log = keys.get("no_log")

@@ -6,7 +6,7 @@ import json
 from collections.abc import Sequence
 
 from ansible_secops_linter import __version__
-from ansible_secops_linter.models import Finding
+from ansible_secops_linter.models import RULES, Finding
 
 _INFORMATION_URI = "https://github.com/semx/ansible-secops-linter"
 
@@ -22,7 +22,8 @@ def to_sarif(findings: Sequence[Finding]) -> str:
             {
                 "id": finding.rule_id,
                 "name": finding.rule_id,
-                "shortDescription": {"text": finding.message},
+                "shortDescription": {"text": RULES.get(finding.rule_id, finding.message)},
+                "defaultConfiguration": {"level": finding.severity.value},
             },
         )
         results.append(
